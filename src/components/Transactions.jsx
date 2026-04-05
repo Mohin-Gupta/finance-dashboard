@@ -1,280 +1,233 @@
-import { useApp } from "../context/AppContext";
-import { useState, useMemo } from "react";
-import { Search, Plus, Pencil, Trash2, X, Check } from "lucide-react";
-import { CATEGORIES, CATEGORY_COLORS } from "../data/transactions";
+import { useState, useMemo } from "react"
+import { useApp } from "../context/AppContext"
+import { Plus, Pencil, Trash2, Search } from "lucide-react"
+import { CATEGORIES, COLORS } from "../data/transactions"
 
-const emptyForm = { date: "", description: "", amount: "", category: "Food", type: "expense" };
+const empty = { date: "", description: "", amount: "", category: "Food", type: "expense" }
+
+const sel = "border border-stone-200 dark:border-stone-700 rounded-lg px-2.5 py-1.5 text-xs bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-300 focus:outline-none focus:ring-1 focus:ring-amber-400"
 
 export default function Transactions() {
-  const { transactions, role, addTransaction, editTransaction, deleteTransaction } = useApp();
+  const { transactions, role, addTransaction, editTransaction, deleteTransaction } = useApp()
 
-  const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [filterCat, setFilterCat] = useState("all");
-  const [sortBy, setSortBy] = useState("date-desc");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [editId, setEditId] = useState(null);
+  const [search,     setSearch]     = useState("")
+  const [filterType, setFilterType] = useState("all")
+  const [filterCat,  setFilterCat]  = useState("all")
+  const [sortBy,     setSortBy]     = useState("date-desc")
+  const [showForm,   setShowForm]   = useState(false)
+  const [form,       setForm]       = useState(empty)
+  const [editId,     setEditId]     = useState(null)
 
   const filtered = useMemo(() => {
-    let list = [...transactions];
-
-    if (search) {
-      list = list.filter(t => t.description.toLowerCase().includes(search.toLowerCase()));
-    }
-
-    if (filterType !== "all") {
-      list = list.filter(t => t.type === filterType);
-    }
-
-    if (filterCat !== "all") {
-      list = list.filter(t => t.category === filterCat);
-    }
-
-    const [key, dir] = sortBy.split("-");
+    let list = [...transactions]
+    if (search)               list = list.filter(t => t.description.toLowerCase().includes(search.toLowerCase()))
+    if (filterType !== "all") list = list.filter(t => t.type === filterType)
+    if (filterCat  !== "all") list = list.filter(t => t.category === filterCat)
+    const [key, dir] = sortBy.split("-")
     list.sort((a, b) => {
-      const av = key === "amount" ? a.amount : new Date(a.date);
-      const bv = key === "amount" ? b.amount : new Date(b.date);
-      return dir === "desc" ? (bv > av ? 1 : -1) : (av > bv ? 1 : -1);
-    });
+      const av = key === "amount" ? a.amount : new Date(a.date)
+      const bv = key === "amount" ? b.amount : new Date(b.date)
+      return dir === "desc" ? (bv > av ? 1 : -1) : (av > bv ? 1 : -1)
+    })
+    return list
+  }, [transactions, search, filterType, filterCat, sortBy])
 
-    return list;
-  }, [transactions, search, filterType, filterCat, sortBy]);
+  function handleSubmit() {
+    if (!form.date || !form.description || !form.amount) return
+    const tx = { ...form, amount: Number(form.amount) }
+    if (editId) { editTransaction(editId, tx); setEditId(null) }
+    else addTransaction(tx)
+    setForm(empty)
+    setShowForm(false)
+  }
 
-  const handleSubmit = () => {
-    if (!form.date || !form.description || !form.amount) return;
-    const tx = { ...form, amount: Number(form.amount) };
-    if (editId) {
-      editTransaction(editId, tx);
-      setEditId(null);
-    } else {
-      addTransaction(tx);
-    }
-    setForm(emptyForm);
-    setShowForm(false);
-  };
+  function startEdit(tx) {
+    setForm({ date: tx.date, description: tx.description, amount: tx.amount, category: tx.category, type: tx.type })
+    setEditId(tx.id)
+    setShowForm(true)
+  }
 
-  const startEdit = (tx) => {
-    setForm({
-      date: tx.date,
-      description: tx.description,
-      amount: tx.amount,
-      category: tx.category,
-      type: tx.type,
-    });
-    setEditId(tx.id);
-    setShowForm(true);
-  };
-
-  const exportCSV = () => {
-    const rows = [
-      "Date,Description,Category,Type,Amount",
+  function exportCSV() {
+    const csv = ["Date,Description,Category,Type,Amount",
       ...filtered.map(t => `${t.date},${t.description},${t.category},${t.type},${t.amount}`)
-    ];
-    const csv = rows.join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "transactions.csv";
-    a.click();
-  };
+    ].join("\n")
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }))
+    a.download = "transactions.csv"
+    a.click()
+  }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-8">
+
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Transactions</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{filtered.length} transactions found</p>
+          <h1 className="text-lg font-semibold text-stone-800 dark:text-stone-100">Transactions</h1>
+          <p className="text-xs text-stone-400 mt-0.5">{filtered.length} records</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={exportCSV}
-            className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+            className="hidden sm:block text-xs px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
           >
             Export CSV
           </button>
           {role === "admin" && (
             <button
-              onClick={() => { setShowForm(true); setEditId(null); setForm(emptyForm); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-all"
+              onClick={() => { setShowForm(!showForm); setEditId(null); setForm(empty) }}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors"
             >
-              <Plus size={16} /> Add Transaction
+              <Plus size={13} /> Add
             </button>
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="relative">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search transactions..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-400"
+            placeholder="Search..."
+            className={sel + " pl-7 w-36"}
           />
         </div>
-
-        <select
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="all">All Types</option>
+        <select value={filterType} onChange={e => setFilterType(e.target.value)} className={sel}>
+          <option value="all">All types</option>
           <option value="income">Income</option>
           <option value="expense">Expense</option>
         </select>
-
-        <select
-          value={filterCat}
-          onChange={e => setFilterCat(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="all">All Categories</option>
-          {CATEGORIES.filter(c => c !== "Income").map(c => <option key={c}>{c}</option>)}
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className={sel}>
+          <option value="all">All categories</option>
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
         </select>
-
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none"
-        >
-          <option value="date-desc">Latest First</option>
-          <option value="date-asc">Oldest First</option>
-          <option value="amount-desc">Highest Amount</option>
-          <option value="amount-asc">Lowest Amount</option>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} className={sel}>
+          <option value="date-desc">Latest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="amount-desc">Highest first</option>
+          <option value="amount-asc">Lowest first</option>
         </select>
       </div>
 
       {showForm && role === "admin" && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 mb-4">
-          <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-4">
-            {editId ? "Edit Transaction" : "New Transaction"}
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-2">
             <input
               type="date"
               value={form.date}
               onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-400"
+              className={sel + " w-full"}
             />
             <input
               type="text"
               placeholder="Description"
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-400"
+              className={sel + " w-full"}
             />
             <input
               type="number"
-              placeholder="Amount (₹)"
+              placeholder="Amount"
               value={form.amount}
               onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-400"
+              className={sel + " w-full"}
             />
-            <select
-              value={form.category}
-              onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none"
-            >
-              {CATEGORIES.filter(c => c !== "Income").map(c => <option key={c}>{c}</option>)}
+            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className={sel + " w-full"}>
+              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
-            <select
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 outline-none"
-            >
+            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className={sel + " w-full"}>
               <option value="expense">Expense</option>
               <option value="income">Income</option>
             </select>
           </div>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={handleSubmit}
-              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 transition-all"
-            >
-              <Check size={15} />{editId ? "Update" : "Add"}
+          <div className="flex gap-2">
+            <button onClick={handleSubmit} className="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors">
+              {editId ? "Update" : "Save"}
             </button>
-            <button
-              onClick={() => { setShowForm(false); setEditId(null); }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-all"
-            >
-              <X size={15} /> Cancel
+            <button onClick={() => { setShowForm(false); setEditId(null) }} className="text-xs px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors">
+              Cancel
             </button>
           </div>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="text-center py-16 text-slate-400">
-            <Search size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">No transactions found</p>
-            <p className="text-sm mt-1">Try adjusting your filters</p>
-          </div>
+          <p className="text-center py-12 text-sm text-stone-400">No transactions found</p>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                {["Date", "Description", "Category", "Type", "Amount", ...(role === "admin" ? ["Actions"] : [])].map(h => (
-                  <th key={h} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-5 py-3">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((tx, i) => (
-                <tr
-                  key={tx.id}
-                  className={`border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${i % 2 === 0 ? "" : "bg-slate-50/50 dark:bg-slate-800/20"}`}
-                >
-                  <td className="px-5 py-3.5 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    {new Date(tx.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                  </td>
-                  <td className="px-5 py-3.5 text-sm font-medium text-slate-700 dark:text-slate-200">
-                    {tx.description}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={{ backgroundColor: `${CATEGORY_COLORS[tx.category]}20`, color: CATEGORY_COLORS[tx.category] }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[tx.category] }} />
-                      {tx.category}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${tx.type === "income" ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400"}`}>
-                      {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
-                    </span>
-                  </td>
-                  <td className={`px-5 py-3.5 text-sm font-semibold ${tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-700 dark:text-slate-200"}`}>
-                    {tx.type === "income" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
-                  </td>
-                  {role === "admin" && (
-                    <td className="px-5 py-3.5">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => startEdit(tx)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => deleteTransaction(tx.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  )}
+          <>
+            <table className="w-full text-xs hidden md:table">
+              <thead className="border-b border-stone-100 dark:border-stone-800">
+                <tr>
+                  {["Date", "Description", "Category", "Type", "Amount", ...(role === "admin" ? [""] : [])].map((h, i) => (
+                    <th key={i} className="text-left text-stone-400 font-medium px-4 py-2.5">{h}</th>
+                  ))}
                 </tr>
+              </thead>
+              <tbody>
+                {filtered.map(tx => (
+                  <tr key={tx.id} className="border-b border-stone-50 dark:border-stone-800/40 last:border-0">
+                    <td className="px-4 py-2.5 text-stone-400 whitespace-nowrap">
+                      {new Date(tx.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                    <td className="px-4 py-2.5 text-stone-700 dark:text-stone-300">{tx.description}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium" style={{ backgroundColor: COLORS[tx.category] + "20", color: COLORS[tx.category] }}>
+                        {tx.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${tx.type === "income" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"}`}>
+                        {tx.type === "income" ? "Income" : "Expense"}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-2.5 font-medium ${tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-700 dark:text-stone-300"}`}>
+                      {tx.type === "income" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
+                    </td>
+                    {role === "admin" && (
+                      <td className="px-4 py-2.5">
+                        <div className="flex gap-1">
+                          <button onClick={() => startEdit(tx)} className="p-1 text-stone-300 hover:text-amber-500 rounded transition-colors"><Pencil size={12} /></button>
+                          <button onClick={() => deleteTransaction(tx.id)} className="p-1 text-stone-300 hover:text-red-500 rounded transition-colors"><Trash2 size={12} /></button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="md:hidden divide-y divide-stone-100 dark:divide-stone-800">
+              {filtered.map(tx => (
+                <div key={tx.id} className="flex items-center justify-between px-4 py-2.5">
+                  <div>
+                    <p className="text-sm text-stone-700 dark:text-stone-300">{tx.description}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-xs text-stone-400">
+                        {new Date(tx.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                      </span>
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: COLORS[tx.category] + "20", color: COLORS[tx.category] }}>
+                        {tx.category}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-stone-700 dark:text-stone-300"}`}>
+                      {tx.type === "income" ? "+" : "-"}₹{tx.amount.toLocaleString("en-IN")}
+                    </span>
+                    {role === "admin" && (
+                      <button onClick={() => deleteTransaction(tx.id)} className="p-1 text-stone-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
     </div>
-  );
+  )
 }

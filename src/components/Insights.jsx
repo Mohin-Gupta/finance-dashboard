@@ -1,131 +1,99 @@
-import { useApp } from "../context/AppContext";
-import { useMemo } from "react";
-import { TrendingUp, TrendingDown, AlertCircle, Award } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { CATEGORY_COLORS } from "../data/transactions";
+import { useMemo } from "react"
+import { useApp } from "../context/AppContext"
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Legend } from "recharts"
+import { COLORS } from "../data/transactions"
+
+function fmt(n) {
+  return "₹" + n.toLocaleString("en-IN")
+}
 
 export default function Insights() {
-  const { transactions } = useApp();
+  const { transactions } = useApp()
 
-  const { topCategory, monthlyComparison, categoryBreakdown, savingsRate } = useMemo(() => {
-    const expensesByCategory = {};
+  const expensesByCategory = useMemo(() => {
+    const map = {}
     transactions.filter(t => t.type === "expense").forEach(t => {
-      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
-    });
+      map[t.category] = (map[t.category] || 0) + t.amount
+    })
+    return Object.entries(map).sort((a, b) => b[1] - a[1])
+  }, [transactions])
 
-    const topCategory = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1])[0];
-
-    const monthlyMap = {};
+  const monthlyData = useMemo(() => {
+    const map = {}
     transactions.forEach(t => {
-      const month = new Date(t.date).toLocaleString("default", { month: "short", year: "2-digit" });
-      if (!monthlyMap[month]) monthlyMap[month] = { month, income: 0, expenses: 0 };
-      if (t.type === "income") monthlyMap[month].income += t.amount;
-      else monthlyMap[month].expenses += t.amount;
-    });
-    const monthlyComparison = Object.values(monthlyMap);
+      const month = new Date(t.date).toLocaleString("default", { month: "short" })
+      if (!map[month]) map[month] = { month, income: 0, expenses: 0 }
+      if (t.type === "income") map[month].income += t.amount
+      else map[month].expenses += t.amount
+    })
+    return Object.values(map)
+  }, [transactions])
 
-    const categoryBreakdown = Object.entries(expensesByCategory).sort((a, b) => b[1] - a[1]);
-
-    const totalIncome = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    const totalExpenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-    const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
-
-    return { topCategory, monthlyComparison, categoryBreakdown, savingsRate };
-  }, [transactions]);
-
-  const fmt = n => `₹${n.toLocaleString("en-IN")}`;
-  const total = categoryBreakdown.reduce((s, [, v]) => s + v, 0);
+  const totalIncome   = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0)
+  const totalExpenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0)
+  const savingsRate   = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0
+  const totalSpend    = expensesByCategory.reduce((s, [, v]) => s + v, 0)
+  const topCategory   = expensesByCategory[0]
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Insights</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Understand your spending patterns</p>
-      </div>
+    <div className="p-4 md:p-8">
+      <h1 className="text-lg font-semibold text-stone-800 dark:text-stone-100 mb-1">Insights</h1>
+      <p className="text-sm text-stone-500 mb-6">Spending patterns and analysis</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {topCategory && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Award size={18} className="text-amber-500" />
-              <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Highest Spending</span>
-            </div>
-            <p className="text-xl font-bold text-slate-800 dark:text-white">{topCategory[0]}</p>
-            <p className="text-amber-600 dark:text-amber-400 font-semibold">{fmt(topCategory[1])}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Your biggest expense category</p>
-          </div>
-        )}
-
-        <div className={`border rounded-2xl p-5 ${savingsRate >= 20 ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800" : "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800"}`}>
-          <div className="flex items-center gap-2 mb-3">
-            {savingsRate >= 20
-              ? <TrendingUp size={18} className="text-emerald-500" />
-              : <TrendingDown size={18} className="text-rose-500" />}
-            <span className={`text-sm font-semibold ${savingsRate >= 20 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}`}>
-              Savings Rate
-            </span>
-          </div>
-          <p className="text-3xl font-bold text-slate-800 dark:text-white">{savingsRate}%</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {savingsRate >= 20 ? "Great! You're saving well above 20%" : "Consider cutting expenses to save more"}
-          </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4">
+          <p className="text-xs text-stone-400 mb-1">Top Category</p>
+          <p className="text-lg font-semibold text-stone-800 dark:text-stone-100">{topCategory ? topCategory[0] : "—"}</p>
+          <p className="text-xs text-stone-400 mt-0.5">{topCategory ? fmt(topCategory[1]) + " total" : ""}</p>
         </div>
-
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle size={18} className="text-blue-500" />
-            <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">Observation</span>
-          </div>
-          <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-            {categoryBreakdown.length > 0
-              ? `You spend ${Math.round((categoryBreakdown[0][1] / total) * 100)}% of expenses on ${categoryBreakdown[0][0]}`
-              : "No expense data yet"}
+        <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4">
+          <p className="text-xs text-stone-400 mb-1">Savings Rate</p>
+          <p className={`text-lg font-semibold ${savingsRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+            {savingsRate}%
           </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Based on all recorded transactions</p>
+          <p className="text-xs text-stone-400 mt-0.5">{savingsRate >= 20 ? "Above 20% target" : "Below 20% target"}</p>
+        </div>
+        <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4">
+          <p className="text-xs text-stone-400 mb-1">Observation</p>
+          <p className="text-sm text-stone-700 dark:text-stone-300 leading-relaxed">
+            {topCategory
+              ? `${topCategory[0]} is ${Math.round((topCategory[1] / totalSpend) * 100)}% of your expenses`
+              : "No data yet"}
+          </p>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-6">Monthly Income vs Expenses</h2>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={monthlyComparison} barGap={4}>
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4 mb-4">
+        <p className="text-sm font-medium text-stone-600 dark:text-stone-400 mb-4">Monthly Comparison</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={monthlyData} barGap={4}>
             <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={v => fmt(v)} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" }} />
             <Legend />
-            <Bar dataKey="income" name="Income" fill="#10b981" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="expenses" name="Expenses" fill="#f43f5e" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="income"   name="Income"   fill="#3a8f6f" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            <Bar dataKey="expenses" name="Expenses" fill="#c0444a" radius={[4, 4, 0, 0]} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-5">Expense Category Breakdown</h2>
+      <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-xl p-4">
+        <p className="text-sm font-medium text-stone-600 dark:text-stone-400 mb-4">Expense Breakdown</p>
         <div className="flex flex-col gap-3">
-          {categoryBreakdown.map(([cat, val]) => (
+          {expensesByCategory.map(([cat, val]) => (
             <div key={cat}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-sm text-slate-600 dark:text-slate-400">{cat}</span>
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {fmt(val)}{" "}
-                  <span className="text-xs text-slate-400 font-normal">
-                    ({Math.round((val / total) * 100)}%)
-                  </span>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-stone-500 dark:text-stone-400">{cat}</span>
+                <span className="text-stone-700 dark:text-stone-300 font-medium">
+                  {fmt(val)} <span className="text-stone-400 font-normal">({Math.round((val / totalSpend) * 100)}%)</span>
                 </span>
               </div>
-              <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${(val / total) * 100}%`,
-                    backgroundColor: CATEGORY_COLORS[cat] || "#94a3b8"
-                  }}
-                />
+              <div className="h-1.5 bg-stone-100 dark:bg-stone-800 rounded-full">
+                <div className="h-full rounded-full" style={{ width: `${(val / totalSpend) * 100}%`, backgroundColor: COLORS[cat] }} />
               </div>
             </div>
           ))}
         </div>
       </div>
     </div>
-  );
+  )
 }
